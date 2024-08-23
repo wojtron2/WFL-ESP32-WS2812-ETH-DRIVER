@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <Time.h>
+#include <ArduinoJson.h> // Dodaj bibliotekę ArduinoJson do obsługi JSON
 
 #define LEDS_COUNT 1
 #define LEDS_PIN 27
@@ -16,16 +16,16 @@ IPAddress ip(192, 168, 2, 177);
 EthernetServer server(80);
 String header;
 
-// Zmienna do przechowywania aktualnego koloru LED
 int currentRed = 0;
 int currentGreen = 0;
 int currentBlue = 0;
+String LEDState = "off";
 
 const int output26 = 26;
 const int output25 = 25;
 
 unsigned long currentTime = millis();
-unsigned long previousTime = 0; 
+unsigned long previousTime = 0;
 const long timeoutTime = 2000;
 
 void setup() {
@@ -67,7 +67,7 @@ void loop() {
     Serial.println("New Client.");
     String currentLine = "";
     
-    while (client.connected()) {
+    while (client.connected() && currentTime - previousTime <= timeoutTime) {
       if (client.available()) {
         char c = client.read();
         Serial.write(c);
@@ -79,32 +79,92 @@ void loop() {
             client.println("Content-type:text/html");
             client.println("Connection: close");
             client.println();
-            
-            if (header.indexOf("GET /26/on") >= 0) {
-              Serial.println("GPIO 26 on");
-              digitalWrite(output26, HIGH);
-            } else if (header.indexOf("GET /26/off") >= 0) {
-              Serial.println("GPIO 26 off");
-              digitalWrite(output26, LOW);
-            } else if (header.indexOf("GET /LEDs/brightness/on") >= 0) {
-              Serial.println("LED brightness on");
-              ledstrip.setBrightness(100);
-              ledstrip.show();
-            } else if (header.indexOf("GET /LEDs/brightness/off") >= 0) {
-              Serial.println("LED brightness off");
-              ledstrip.setBrightness(0);
-              ledstrip.show();
-            } else if (header.indexOf("GET /RGB/") >= 0) {
-              int red, green, blue;
-              parseRGB(header, red, green, blue);
-              //Serial.printf("Setting LED to R:%d G:%d B:%d\n", red, green, blue);
+
+            if (header.indexOf("POST /updateColor") >= 0) {
+              // Read POST data
+              String postData = "";
+              while (client.available()) {
+                postData += (char)client.read();
+              }
+              
+              // Parse JSON data
+              DynamicJsonDocument doc(1024);
+              deserializeJson(doc, postData);
+              int red = doc["red"];
+              int green = doc["green"];
+              int blue = doc["blue"];
+              //Serial.printf("Received color - R:%d G:%d B:%d\n", red, green, blue);
               ledstrip.setLedColorData(0, red, green, blue);
               currentRed = red;
               currentGreen = green;
               currentBlue = blue;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /LEDs/brightness/on") >= 0) {
+              Serial.println("LED on");
+              ledstrip.setBrightness(100);
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /LEDs/brightness/off") >= 0) {
+              Serial.println("LED off");
+              ledstrip.setBrightness(0);
+              LEDState = "off";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r") >= 0) {
+              // Extract RGB values from URL
+              int red = header.substring(header.indexOf("r") + 1, header.indexOf("g")).toInt();
+              int green = header.substring(header.indexOf("g") + 1, header.indexOf("b")).toInt();
+              int blue = header.substring(header.indexOf("b") + 1).toInt();
+              //Serial.printf("Received color - R:%d G:%d B:%d\n", red, green, blue);
+              ledstrip.setLedColorData(0, red, green, blue);
+              currentRed = red;
+              currentGreen = green;
+              currentBlue = blue;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r255g0b0") >= 0) {
+              Serial.println("Set color to Red");
+              ledstrip.setLedColorData(0, 255, 0, 0);
+              currentRed = 255;
+              currentGreen = 0;
+              currentBlue = 0;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r0g255b0") >= 0) {
+              Serial.println("Set color to Green");
+              ledstrip.setLedColorData(0, 0, 255, 0);
+              currentRed = 0;
+              currentGreen = 255;
+              currentBlue = 0;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r0g0b255") >= 0) {
+              Serial.println("Set color to Blue");
+              ledstrip.setLedColorData(0, 0, 0, 255);
+              currentRed = 0;
+              currentGreen = 0;
+              currentBlue = 255;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r255g255b255") >= 0) {
+              Serial.println("Set color to White");
+              ledstrip.setLedColorData(0, 255, 255, 255);
+              currentRed = 255;
+              currentGreen = 255;
+              currentBlue = 255;
+              LEDState = "on";
+              ledstrip.show();
+            } else if (header.indexOf("GET /RGB/r255g0b125") >= 0) {
+              Serial.println("Set color to Pink");
+              ledstrip.setLedColorData(0, 255, 0, 125);
+              currentRed = 255;
+              currentGreen = 0;
+              currentBlue = 125;
+              LEDState = "on";
               ledstrip.show();
             }
 
+            // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
@@ -113,21 +173,28 @@ void loop() {
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
             client.println(".button2 {background-color: #555555;}</style></head>");
             
+            // Web Page Heading
             client.println("<body><h1>ESP32 Web Server by wojtron</h1>");
+            
+            // Display current state, and ON/OFF buttons for GPIO 26  
             client.println("<p>GPIO 26 - State " + String(digitalRead(output26) == HIGH ? "on" : "off") + "</p>");
-            client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
-            client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
-            
-            client.println("<p>LED State: R" + String(currentRed) + " G" + String(currentGreen) + " B" + String(currentBlue) + "</p>");
-            client.println("<p><a href=\"/LEDs/brightness/on\"><button class=\"button\">Turn ON LED</button></a>");
-            client.println("<p><a href=\"/LEDs/brightness/off\"><button class=\"button button2\">Turn OFF LED</button></a></p>");
+            if (digitalRead(output26) == LOW) {
+              client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
+            } else {
+              client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
+            }
 
+            // Display LED state
+            client.println("<p>LEDState: " + LEDState + "</p>");
+            client.println("<p><a href=\"/LEDs/brightness/on\"><button class=\"button\">Turn ON LED</button></a></p>");
+            client.println("<p><a href=\"/LEDs/brightness/off\"><button class=\"button button2\">Turn OFF LED</button></a></p>");
             
-            client.println("<p><a href=\"/RGB/r255g255b255\"><button class=\"button\">White</button></a>");
-            client.println("<p><a href=\"/RGB/r255g0b125\"><button class=\"button\">Pink</button></a>");
-            client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a>");
-            client.println("<p><a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a>");
-            client.println("<p><a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a>");
+            // Display color control buttons
+            client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a></p>");
+            client.println("<p><a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a></p>");
+            client.println("<p><a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a></p>");
+            client.println("<p><a href=\"/RGB/r255g255b255\"><button class=\"button\">White</button></a></p>");
+            client.println("<p><a href=\"/RGB/r255g0b125\"><button class=\"button\">Pink</button></a></p>");
             
             client.println("</body></html>");
             client.println();
@@ -138,31 +205,12 @@ void loop() {
         } else if (c != '\r') {
           currentLine += c;
         }
+        currentTime = millis(); // Update time on each client action
       }
     }
     header = "";
     client.stop();
     Serial.println("Client disconnected.");
     Serial.println("");
-  }
-}
-
-void parseRGB(String header, int &red, int &green, int &blue) {
-  int rIndex = header.indexOf('r');
-  int gIndex = header.indexOf('g');
-  int bIndex = header.indexOf('b');
-  
-  if (rIndex > 0 && gIndex > 0 && bIndex > 0) {
-    String rStr = header.substring(rIndex + 1, gIndex);  
-    String gStr = header.substring(gIndex + 1, bIndex);  
-    String bStr = header.substring(bIndex + 1);   
-    
-    red = rStr.toInt();
-    green = gStr.toInt();
-    blue = bStr.toInt();
-  } else {
-    red = 0;
-    green = 0;
-    blue = 0;
   }
 }
