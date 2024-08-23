@@ -121,6 +121,7 @@ void loop() {
               parseRGB(header, r, g, b);  // Parsowanie wartości RGB
               ledstrip.setLedColorData(0, r, g, b);
               ledstrip.show();
+              LEDState = "on";
               // Nie zmieniaj stanu LEDState tutaj, bo kolor może być dowolny
             } else if (header.indexOf("GET /LEDs/on") >= 0) {
               Serial.println("LED on");
