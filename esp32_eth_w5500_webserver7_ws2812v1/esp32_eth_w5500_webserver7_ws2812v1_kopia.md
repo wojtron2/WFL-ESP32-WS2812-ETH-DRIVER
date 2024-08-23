@@ -1,8 +1,98 @@
+/*
+DO DODANIA:
+czas z serwera NTP i na wyswietlacz, moze jakis scheduler w oparciu na nim
+hd44780
+max7219 dot display do czasu
+ds18b20
+i2c lcd 1602/2004 pcf8574
+obsluga guzikiem tak jak w arduino
+czujka ruchu?
+dac na swoje miejsce urzadzenie, dac ten kabel eth i na nim wyjscia
+zrobic PCB mala z rezystorem zeby bylo pewniejsze polaczenie ws2812
+
+//// do LEDA
+wlacz wylacz wszystkie ledy
+dodac rainbow - jest jako example biblioteki freenove
+
+
+zmien program/cycle program
+ustaw jasnosc
+ustaw tempo
+ustaw rodzaj efektu
+przeniesc swoje funkcje i efekty z projektu esp32 espidf led driver
+
+
+!!//////
+!! NA DOLE JEST EXAMPLE NTP UDP CLIENT z tej librarki
+
+// ale duzo krotszy jest w libce NTPClient, zrobic dla niej handler UDP i zrobic na niej
+https://github.com/arduino-libraries/NTPClient
+
+!!! zapisac gdzies pinout platformy dokladnie zeby mozna bylo potem latwo odtworzyc
+zrobic led all off
+led all on
+zmiana jasnosci (program albo set brighntess)
+pole do recznego ustawiania jasnosci
+wyswietlanie temperatur z czujnikow
+
+wyswietlacz: zrobic pole tekstowe input gdzie mozna cos wpisac i to wyswietli sie na wyswietlaczu
+i mozna wyswietlic to na roznych wyswietlaczach
+mozna wybrac do kazdego wyswietlacza czy ma wyswietlac godzine, jakis predefiniowany program albo zadany tekst
+// <input type="range"> suwak, zrobic taki do jasnosci poszczegolnych kanalow, predkosci animacji, recznego ustawiania kolorow
+//zrobic animacje kolory niebiesko fioletowo rozowy
+
+//na wyswietlaczu wyswietlac godzine, temperatury, status serwerow mc czy online jest ktorys
+temperatury na polu
+zegar ntp
+
+
+
+
+
+*/
+/*
+RAINBOW Z NETA
+https://github.com/Freenove/Freenove_WS2812_Lib_for_ESP32
+sprawdzic rainbow z exampla
+
+for (int j = 0; j < 255; j += 2) {
+    for (int i = 0; i < LEDS_COUNT; i++) {
+      strip.setLedColorData(i, strip.Wheel((i * 256 / LEDS_COUNT + j) & 255));
+    }
+    strip.show();
+    delay(2);
+
+*/
+/* DO DODANIA Z LED DRIVERA ESP32
+    ETHERNET
+    HTTP
+    RESTapi
+    cJSONs builder & parser
+    UART control
+    WiFi
+    BLE
+    Drive of leds from ethernet/uart/wifi/usb
+    Drive of leds from sound-related data to drive leds according to sound source through ETH, USB, BLE
+    Ability to control led from HTTP server
+    PC control app
+    more animation effects!
+    more buttons control
+    display configuration
+    control of multiple led strips
+    ability to manage, clone, edit and create new presets, functions, animations
+
+Optional planned features
+
+    Read from I2C temp sensors
+    Control of relays (preferably Solid State Relay to prevent transient voltages on power line)
+
+*/
 #include "Freenove_WS2812_Lib_for_ESP32.h"
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
 #include <Time.h>
+
 
 #define LEDS_COUNT 1
 #define LEDS_PIN 27
@@ -29,6 +119,7 @@ String header;
 // Auxiliar variables to store the current output state
 String output26State = "off";
 String LEDState = "off";
+//String ledpin27color = "off";
 
 // Assign output variables to GPIO pins
 const int output26 = 26;
@@ -53,6 +144,7 @@ void setup() {
   ledstrip.setBrightness(100);
 
   ledstrip.setLedColorData(0, 0, 0, 0);
+  //ledstrip.setLedColorData(0, 255, 0, 0);
   ledstrip.show();
 
   // Open serial communications and wait for port to open:
@@ -82,7 +174,9 @@ void setup() {
   Serial.println(Ethernet.localIP());
 }
 
+
 void loop() {
+
   // listen for incoming clients
   EthernetClient client = server.available();
   if (client) {                             // If a new client connects,
@@ -116,24 +210,11 @@ void loop() {
               Serial.println("GPIO 26 off");
               output26State = "off";
               digitalWrite(output26, LOW);
-            } else if (header.indexOf("GET /RGB/") >= 0) {  // Sprawdzenie żądania RGB
-              Serial.println("Ustawianie koloru LED");
-              int r, g, b;
-              parseRGB(header, r, g, b);  // Parsowanie wartości RGB
-              ledstrip.setLedColorData(0, r, g, b);
-              ledstrip.show();
-              LEDState = "on";
             } else if (header.indexOf("GET /LEDs/on") >= 0) {
               Serial.println("LED on");
-              ledstrip.setLedColorData(0, 255, 255, 255);  // Przykładowo ustawiamy na biały
-              ledstrip.show();
+              ledstrip.setLedColorData(0, 255, 0, 125);
               LEDState = "on";
-            }
-              else if (header.indexOf("GET /LEDs/blue") >= 0) {
-              Serial.println("LED on");
-              ledstrip.setLedColorData(0, 0, 0, 255);  // Przykładowo ustawiamy na biały
               ledstrip.show();
-              LEDState = "on";
             } else if (header.indexOf("GET /LEDs/off") >= 0) {
               Serial.println("LED off");
               ledstrip.setLedColorData(0, 0, 0, 0);
@@ -141,13 +222,17 @@ void loop() {
               LEDState = "off";
             }
             
+
+            
             // Display the HTML web page
             client.println("<!DOCTYPE html><html>");
             client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
             client.println("<link rel=\"icon\" href=\"data:,\">");
             // CSS to style the on/off buttons 
             // Feel free to change the background-color and font-size attributes to fit your preferences
-            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+            //client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: left;}");
+
             client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
             client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
             client.println(".button2 {background-color: #555555;}</style></head>");
@@ -164,21 +249,14 @@ void loop() {
               client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
             } 
                
-            // Display current state, and ON/OFF buttons for LED  
+            // Display current state, and ON/OFF buttons for GPIO 27  
             client.println("<p>LEDState " + LEDState + "</p>");
-            // If the LEDState is off, it displays the OFF button       
+            // If the output25State is off, it displays the ON button       
             if (LEDState=="off") {
-              client.println("<p><a href=\"/LEDs/on\"><button class=\"button\">ON</button></a></p>");
+              client.println("<p><a href=\"/LEDs/on\"><button class=\"button button2\">OFF</button></a></p>");
             } else {
-              client.println("<p><a href=\"/LEDs/off\"><button class=\"button button2\">OFF</button></a></p>");
+              client.println("<p><a href=\"/LEDs/off\"><button class=\"button\">ON</button></a></p>");
             }
-
-            // Provide a link for setting RGB color
-            client.println("<p>Set RGB Color:</p>");
-            client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a>");
-            client.println("<a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a>");
-            client.println("<a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a></p>");
-            
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
@@ -196,31 +274,13 @@ void loop() {
     // Clear the header variable
     header = "";
     // Close the connection
+    delay(1);
     client.stop();
     Serial.println("Client disconnected.");
     Serial.println("");
   }
 }
 
-// Funkcja do parsowania wartości RGB z żądania
-void parseRGB(String header, int &red, int &green, int &blue) {
-  int rIndex = header.indexOf('r');
-  int gIndex = header.indexOf('g');
-  int bIndex = header.indexOf('b');
-  
-  if (rIndex > 0 && gIndex > 0 && bIndex > 0) {
-    String rStr = header.substring(rIndex + 1, header.indexOf('g'));
-    String gStr = header.substring(gIndex + 1, header.indexOf('b'));
-    String bStr = header.substring(bIndex + 1, header.indexOf(' ')); // zmień na ' ' żeby wyciągnąć do końca wartości RGB
-    
-    // Konwersja wartości na liczby całkowite
-    red = rStr.toInt();
-    green = gStr.toInt();
-    blue = bStr.toInt();
-  } else {
-    // Domyślne wartości, jeśli coś poszło nie tak
-    red = 0;
-    green = 0;
-    blue = 0;
-  }
-}
+
+
+
