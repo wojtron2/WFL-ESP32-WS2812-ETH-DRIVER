@@ -86,19 +86,13 @@ void loop() {
             } else if (header.indexOf("GET /26/off") >= 0) {
               Serial.println("GPIO 26 off");
               digitalWrite(output26, LOW);
-            } else if (header.indexOf("GET /LEDs/on") >= 0) {
-              Serial.println("LED on");
-              ledstrip.setLedColorData(0, 255, 0, 125);
-              currentRed = 255;
-              currentGreen = 0;
-              currentBlue = 125;
+            } else if (header.indexOf("GET /LEDs/brightness/on") >= 0) {
+              Serial.println("LED brightness on");
+              ledstrip.setBrightness(100);
               ledstrip.show();
-            } else if (header.indexOf("GET /LEDs/off") >= 0) {
-              Serial.println("LED off");
-              ledstrip.setLedColorData(0, 0, 0, 0);
-              currentRed = 0;
-              currentGreen = 0;
-              currentBlue = 0;
+            } else if (header.indexOf("GET /LEDs/brightness/off") >= 0) {
+              Serial.println("LED brightness off");
+              ledstrip.setBrightness(0);
               ledstrip.show();
             } else if (header.indexOf("GET /RGB/") >= 0) {
               int red, green, blue;
@@ -124,13 +118,16 @@ void loop() {
             client.println("<p><a href=\"/26/on\"><button class=\"button\">ON</button></a></p>");
             client.println("<p><a href=\"/26/off\"><button class=\"button button2\">OFF</button></a></p>");
             
-            client.println("<p>LEDState " + String(currentRed) + "," + String(currentGreen) + "," + String(currentBlue) + "</p>");
-            client.println("<p><a href=\"/LEDs/on\"><button class=\"button button2\">OFF</button></a></p>");
-            client.println("<p><a href=\"/LEDs/off\"><button class=\"button\">ON</button></a></p>");
+            client.println("<p>LED State: R" + String(currentRed) + " G" + String(currentGreen) + " B" + String(currentBlue) + "</p>");
+            client.println("<p><a href=\"/LEDs/brightness/on\"><button class=\"button\">Turn ON LED</button></a>");
+            client.println("<p><a href=\"/LEDs/brightness/off\"><button class=\"button button2\">Turn OFF LED</button></a></p>");
 
-            client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a></p>");
-            client.println("<p><a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a></p>");
-            client.println("<p><a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a></p>");
+            
+            client.println("<p><a href=\"/RGB/r255g255b255\"><button class=\"button\">White</button></a>");
+            client.println("<p><a href=\"/RGB/r255g0b125\"><button class=\"button\">Pink</button></a>");
+            client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a>");
+            client.println("<p><a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a>");
+            client.println("<p><a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a>");
             
             client.println("</body></html>");
             client.println();
