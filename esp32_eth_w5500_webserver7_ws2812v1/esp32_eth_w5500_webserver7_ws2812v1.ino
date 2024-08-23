@@ -15,7 +15,6 @@ Freenove_ESP32_WS2812 ledstrip = Freenove_ESP32_WS2812(LEDS_COUNT, LEDS_PIN, CHA
 byte mac[] = {
   0xFE, 0xFE, 0xBE, 0xFE, 0xDE, 0xED
 };
-//0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
 IPAddress ip(192, 168, 2, 177);
 
 // Initialize the Ethernet server library
@@ -122,16 +121,10 @@ void loop() {
               parseRGB(header, r, g, b);  // Parsowanie wartości RGB
               ledstrip.setLedColorData(0, r, g, b);
               ledstrip.show();
-              LEDState = "on";
+              // Nie zmieniaj stanu LEDState tutaj, bo kolor może być dowolny
             } else if (header.indexOf("GET /LEDs/on") >= 0) {
               Serial.println("LED on");
               ledstrip.setLedColorData(0, 255, 255, 255);  // Przykładowo ustawiamy na biały
-              ledstrip.show();
-              LEDState = "on";
-            }
-              else if (header.indexOf("GET /LEDs/blue") >= 0) {
-              Serial.println("LED on");
-              ledstrip.setLedColorData(0, 0, 0, 255);  // Przykładowo ustawiamy na biały
               ledstrip.show();
               LEDState = "on";
             } else if (header.indexOf("GET /LEDs/off") >= 0) {
@@ -178,11 +171,12 @@ void loop() {
             client.println("<p><a href=\"/RGB/r255g0b0\"><button class=\"button\">Red</button></a>");
             client.println("<a href=\"/RGB/r0g255b0\"><button class=\"button\">Green</button></a>");
             client.println("<a href=\"/RGB/r0g0b255\"><button class=\"button\">Blue</button></a></p>");
-            
+
             client.println("</body></html>");
             
             // The HTTP response ends with another blank line
             client.println();
+            
             // Break out of the while loop
             break;
           } else { // if you got a newline, then clear currentLine
@@ -209,9 +203,9 @@ void parseRGB(String header, int &red, int &green, int &blue) {
   int bIndex = header.indexOf('b');
   
   if (rIndex > 0 && gIndex > 0 && bIndex > 0) {
-    String rStr = header.substring(rIndex + 1, header.indexOf('g'));
-    String gStr = header.substring(gIndex + 1, header.indexOf('b'));
-    String bStr = header.substring(bIndex + 1, header.indexOf(' ')); // zmień na ' ' żeby wyciągnąć do końca wartości RGB
+    String rStr = header.substring(rIndex + 1, gIndex);  // Poprawka do wyciągania wartości czerwonej
+    String gStr = header.substring(gIndex + 1, bIndex);  // Poprawka do wyciągania wartości zielonej
+    String bStr = header.substring(bIndex + 1);          // Wyciągnij wartość niebieską aż do końca
     
     // Konwersja wartości na liczby całkowite
     red = rStr.toInt();
