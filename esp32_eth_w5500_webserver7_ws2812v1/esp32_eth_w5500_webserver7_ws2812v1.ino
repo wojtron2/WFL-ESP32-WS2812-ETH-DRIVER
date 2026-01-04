@@ -70,6 +70,7 @@ void setup() {
   if (Ethernet.linkStatus() == LinkOFF) {
     Serial.println("Ethernet cable is not connected.");
   }
+  sensors.begin();
 
   server.begin();
   Serial.print("server is at ");
@@ -77,7 +78,7 @@ void setup() {
   ledstrip.setLedColorData(0, 255, 0, 0);
   ledstrip.show();
 
-  sensors.begin();
+  
 }
 
 void loop() {
